@@ -1,7 +1,5 @@
 #version 130 
 
-
-
 in   vec4 vPosition;
 in   vec3 vNormal;
 

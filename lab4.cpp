@@ -2,82 +2,29 @@
 
 #include "Angel.h"
 
-const int NumTimesToSubdivide = 5;
-const int NumTriangles        = 4096;  // (4 faces)^(NumTimesToSubdivide + 1)
-const int NumVertices         = 3 * NumTriangles;
-
 typedef Angel::vec4 point4;
 typedef Angel::vec4 color4;
-
-point4 points[NumVertices];
-vec3   normals[NumVertices];
 
 // Model-view and projection matrices uniform location
 GLuint  ModelView, Projection;
 
-//----------------------------------------------------------------------------
+GLfloat size=1;
 
-int Index = 0;
-
-void
-triangle( const point4& a, const point4& b, const point4& c )
-{
-    vec3  normal = normalize( cross(b - a, c - b) );
-
-    normals[Index] = normal;  points[Index] = a;  Index++;
-    normals[Index] = normal;  points[Index] = b;  Index++;
-    normals[Index] = normal;  points[Index] = c;  Index++;
-}
-
-//----------------------------------------------------------------------------
-
-point4
-unit( const point4& p )
-{
-    float len = p.x*p.x + p.y*p.y + p.z*p.z;
-    
-    point4 t;
-    if ( len > DivideByZeroTolerance ) {
-	t = p / sqrt(len);
-	t.w = 1.0;
-    }
-
-    return t;
-}
-
-void
-divide_triangle( const point4& a, const point4& b,
-		 const point4& c, int count )
-{
-    if ( count > 0 ) {
-        point4 v1 = unit( a + b );
-        point4 v2 = unit( a + c );
-        point4 v3 = unit( b + c );
-        divide_triangle(  a, v1, v2, count - 1 );
-        divide_triangle(  c, v2, v3, count - 1 );
-        divide_triangle(  b, v3, v1, count - 1 );
-        divide_triangle( v1, v3, v2, count - 1 );
-    }
-    else {
-        triangle( a, b, c );
-    }
-}
-
-void
-tetrahedron( int count )
-{
-    point4 v[4] = {
-	vec4( 0.0, 0.0, 1.0, 1.0 ),
-	vec4( 0.0, 0.942809, -0.333333, 1.0 ),
-	vec4( -0.816497, -0.471405, -0.333333, 1.0 ),
-	vec4( 0.816497, -0.471405, -0.333333, 1.0 )
-    };
-
-    divide_triangle( v[0], v[1], v[2], count );
-    divide_triangle( v[3], v[2], v[1], count );
-    divide_triangle( v[0], v[3], v[1], count );
-    divide_triangle( v[0], v[2], v[3], count );
-}
+GLfloat vertexarray[]={
+	size,size,-size,
+	size,-size,-size,
+	-size,-size,-size,
+	-size,size,-size,
+	size,size,size,
+	size,-size,size,
+	-size,-size,size,
+	-size,size,size
+};
+											
+ GLubyte elems[]={
+	7,3,4,0,1,3,2,
+	7,6,4,5,1,6,2,1
+ };
 
 //----------------------------------------------------------------------------
 
@@ -85,41 +32,30 @@ tetrahedron( int count )
 void
 init()
 {
-    // Subdivide a tetrahedron into a sphere
-    tetrahedron( NumTimesToSubdivide );
-
     // Create a vertex array object
-    GLuint vao;
-    glGenVertexArrays( 1, &vao );
+    GLuint vao, vbo, ebo;
+    glGenVertexArrays( 1,&vao);
     glBindVertexArray( vao );
 
-    // Create and initialize a buffer object
-    GLuint buffer;
-    glGenBuffers( 1, &buffer );
-    glBindBuffer( GL_ARRAY_BUFFER, buffer );
-    glBufferData( GL_ARRAY_BUFFER, sizeof(points) + sizeof(normals),
-		  NULL, GL_STATIC_DRAW );
-    glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof(points), points );
-    glBufferSubData( GL_ARRAY_BUFFER, sizeof(points),
-		     sizeof(normals), normals );
+	// Create buffer
+	glGenBuffers(1,&vbo);
+	glBindBuffer(GL_ARRAY_BUFFER,vbo);
+	glBufferData(GL_ARRAY_BUFFER,sizeof(vertexarray),vertexarray,GL_STATIC_DRAW);
+	glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,(void*)0);
+  
+	glGenBuffers(1,&ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER,sizeof(elems),elems,GL_STATIC_DRAW);
 
     // Load shaders and use the resulting shader program
     GLuint program = InitShader( "vshader56.glsl", "fshader56.glsl" );
     glUseProgram( program );
 	
     // set up vertex arrays
-    GLuint vPosition = glGetAttribLocation( program, "vPosition" );
-    glEnableVertexAttribArray( vPosition );
-    glVertexAttribPointer( vPosition, 4, GL_FLOAT, GL_FALSE, 0,
-			   BUFFER_OFFSET(0) );
-
-    GLuint vNormal = glGetAttribLocation( program, "vNormal" ); 
-    glEnableVertexAttribArray( vNormal );
-    glVertexAttribPointer( vNormal, 3, GL_FLOAT, GL_FALSE, 0,
-			   BUFFER_OFFSET(sizeof(points)) );
+    glEnableVertexAttribArray( 0 );
 
     // Initialize shader lighting parameters
-    point4 light_position( 0.0, 0.0, 2.0, 0.0 );
+    point4 light_position( 0.0, 0.0, 1.0, 0.0 );
     color4 light_ambient( 0.2, 0.2, 0.2, 1.0 );
     color4 light_diffuse( 1.0, 1.0, 1.0, 1.0 );
     color4 light_specular( 1.0, 1.0, 1.0, 1.0 );
@@ -163,13 +99,13 @@ display( void )
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
     point4 at( 0.0, 0.0, 0.0, 1.0 );
-    point4 eye( 0.0, 0.0, 2.0, 1.0 );
-    vec4   up( 0.0, 1.0, 0.0, 0.0 );
+    point4 eye( 3.0, 1.0, 3.0, 1.0 );
+    vec4   up( 0.0, 5.0, 0.0, 0.0 );
 
     mat4 model_view = LookAt( eye, at, up );
     glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view );
 
-    glDrawArrays( GL_TRIANGLES, 0, NumVertices );
+    glDrawElements( GL_TRIANGLE_STRIP,sizeof(elems),GL_UNSIGNED_BYTE,NULL);
     glutSwapBuffers();
 }
 
@@ -223,7 +159,7 @@ main( int argc, char **argv )
     glutInitWindowSize( 512, 512 );
     glutInitContextVersion( 2, 1 );
     glutInitContextProfile( GLUT_CORE_PROFILE );
-    glutCreateWindow( "Sphere" );
+    glutCreateWindow( "Schwarz - lab4" );
 
     glewInit();
 
