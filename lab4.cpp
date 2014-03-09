@@ -1,12 +1,21 @@
 // fragment shading of sphere model
 
 #include "Angel.h"
+#include <iostream>
 
 typedef Angel::vec4 point4;
 typedef Angel::vec4 color4;
 
 // Model-view and projection matrices uniform location
 GLuint  ModelView, Projection;
+
+// Create camera view variables
+point4 at( 0.0, 0.0, 0.0, 1.0 );
+point4 eye( 0.0, 0.0, 0.0, 1.0 );
+vec4   up( 0.0, 5.0, 0.0, 0.0 );
+
+// Sperical Coordinate vector (r, theta, phi)
+vec3 sphericaleye( 4.0, M_PI/4.0, M_PI/4.0 ) ;
 
 GLfloat size=1;
 
@@ -98,9 +107,13 @@ display( void )
 {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-    point4 at( 0.0, 0.0, 0.0, 1.0 );
-    point4 eye( 3.0, 1.0, 3.0, 1.0 );
-    vec4   up( 0.0, 5.0, 0.0, 0.0 );
+	// Create new eye vector from sphericaleye vector
+	eye.z = sphericaleye.x * cos(sphericaleye.y) * sin(sphericaleye.z);
+	eye.x = sphericaleye.x * sin(sphericaleye.y) * sin(sphericaleye.z);
+	eye.y = sphericaleye.x * cos(sphericaleye.z);
+
+	std::cout << "Eye: (" << eye.x << "," << eye.y << "," << eye.z << ")  \t";
+	std::cout << "Spherical Eye: (" << sphericaleye.x << "," << sphericaleye.y << "," << sphericaleye.z << ")" << std::endl;
 
     mat4 model_view = LookAt( eye, at, up );
     glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view );
@@ -119,7 +132,20 @@ keyboard( unsigned char key, int x, int y )
 	case 'q': case 'Q':
 	    exit( EXIT_SUCCESS );
 	    break;
+	case 'w': case 'W':
+		sphericaleye.z+=M_PI/64.0;
+	    break;
+	case 'a': case 'A':
+		sphericaleye.y-=M_PI/64.0;
+	    break;
+	case 's': case 'S':
+		sphericaleye.z-=M_PI/64.0;
+	    break;
+	case 'd': case 'D':
+		sphericaleye.y+=M_PI/64.0;
+	    break;
     }
+	glutPostRedisplay();
 }
 
 //----------------------------------------------------------------------------
